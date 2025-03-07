@@ -7,4 +7,5 @@ requires-python = ">=3.12"
 dependencies = [
     "playwright>=1.50.0",
     "python-dotenv>=1.0.1",
+    "tqdm>=4.67.1",
 ]
