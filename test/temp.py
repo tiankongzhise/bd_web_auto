@@ -1,7 +1,8 @@
-from dotenv import load_dotenv
+import tomllib
 import os
-load_dotenv()
 
 if __name__ == '__main__':
-    print(os.getenv("BDCC_PASSWORD"))
-    print(os.getenv("BDCC_USERNAME"))
+    config_path = os.path.abspath('config.toml')
+    with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+    print([config['user_map']['金蛛-新账户4']])

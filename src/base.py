@@ -1,8 +1,13 @@
 from playwright.sync_api import Playwright, sync_playwright, Page
 import tomllib
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()
+
+class NavigationError(Exception):
+    """自定义异常类，用于表示导航失败的错误"""
+    pass
 
 class BdWebAutoBase(object):
     def __init__(self, playwright: Playwright) -> None:
@@ -25,14 +30,6 @@ class BdWebAutoBase(object):
     
     
     def close_popup(self,page:Page):
-         #等待页面加载
-        try:
-            page.wait_for_load_state("networkidle",timeout=10000)
-        except Exception as e:
-            print(f'页面加载超时: {e}')
-        # checkbox = page2.get_by_role("checkbox", name="我已阅读并同意《营销通服务协议》以及《数据安全与保密协议》 ​")
-        # 处理弹窗
-        # 处理协议弹窗
         try:
             agreement_text = page.get_by_text("我已阅读并同意《营销通服务协议》以及《数据安全与保密协议》")
             agreement_text.wait_for(state="visible", timeout=1000)  # 最多等待1秒
@@ -43,7 +40,7 @@ class BdWebAutoBase(object):
         print('处理保密协议成功')
         try:
             marketing_element = page.get_by_role("strong").filter(has_text="营销通")
-            marketing_element.wait_for(state="visible", timeout=1000)  # 最多等待1秒
+            marketing_element.wait_for(state="visible", timeout=3000)  # 最多等待1秒
             marketing_element.click()
         except Exception as e:
             print(f'营销通超时或出错{e}')
@@ -52,7 +49,7 @@ class BdWebAutoBase(object):
         # 检测并关闭营销通与爱番番双平台融合通告
         try:
             notice = page.locator("text=【营销通与爱番番双平台融合】")
-            notice.wait_for(state="visible", timeout=1000)  # 最多等待3秒
+            notice.wait_for(state="visible", timeout=3000)  # 最多等待3秒
             page.locator("button.one-dialog-close").click()
         except Exception as e:
             print(f'双平台融合通告超时或出错{e}')
@@ -61,7 +58,7 @@ class BdWebAutoBase(object):
         
         try:
             dls_icon = page.locator(".dls-icon").first
-            dls_icon.wait_for(state="visible", timeout=1000)  # 最多等待3秒
+            dls_icon.wait_for(state="visible", timeout=3000)  # 最多等待3秒
             dls_icon.click()
         except Exception as e:
            print(f'弹窗超时或出错:{e}')
@@ -76,7 +73,7 @@ class BdWebAutoBase(object):
                 self.page['user_center'] = self.login()
             user_center = self.page['user_center']
         with user_center.expect_popup() as user_page_info:
-            user_center.get_by_text(user_name).click()
+            user_center.get_by_text(user_name).first.click()
         user_page = user_page_info.value
         self.page[f'{user_name}_page'] = user_page
         return user_page
@@ -98,9 +95,52 @@ class BdWebAutoBase(object):
             marketing_page = marketing_info.value
             print("成功导航到营销通系统")
             self.page['marketing_page'] = marketing_page
-            return page
+            return marketing_page
         except Exception as e:
             raise(f"导航到营销通系统失败: {e}")
+    
+    def navigate_to_jmy_from_page(self, page: Page) -> Page:
+        """
+        从当前页面点击基木鱼，访问基木鱼自建站系统
+        
+        Args:
+            page: 当前页面对象
+            
+        Returns:
+            基木鱼系统页面对象
+        """
+        try:
+            # 点击营销通入口
+            with page.expect_popup() as jmy_info:
+                # page.get_by_role("strong").filter(has_text="基木鱼").click()
+                page.get_by_role("strong").filter(has_text=re.compile(r"^基木鱼$")).click()
+            jmy_page = jmy_info.value
+            print("成功导航到基木鱼系统")
+            self.page['jmy_page'] = jmy_page
+            return jmy_page
+        except Exception as e:
+            raise NavigationError(f"导航到基木鱼系统失败: {e}")
+
+    def navigate_to_jmy(self, user_name:str) -> Page:
+        """
+        通过用户名直接访问基木鱼自建站系统，跳过可能存在的初始化智能建站
+        
+        Args:
+            用户名: 账户名称
+            
+        Returns:
+            基木鱼系统页面对象
+        """
+        user_id = self.config['user_map'][user_name]
+        try:
+            # 点击营销通入口
+            jmy_page = self.context.new_page()
+            jmy_page.goto(f'https://wutong.baidu.com/platform/user/{user_id}/home?ucUserId={user_id}')
+            print("成功导航到基木鱼系统")
+            self.page['jmy_page'] = jmy_page
+            return jmy_page
+        except Exception as e:
+            raise NavigationError(f"导航到基木鱼系统失败: {e}")
     def close(self):
         self.context.close()
         self.browser.close()

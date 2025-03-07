@@ -80,7 +80,7 @@ class YiliaoAuth(BdWebAutoBase):
 
 
 if __name__ == '__main__':
-    user_list = ['金蛛-新账户4']
+    user_list = ["金蛛-PYTHON"]
     result = []
     with sync_playwright() as playwright:
         yiliao_auth = YiliaoAuth(playwright)
