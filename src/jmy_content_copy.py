@@ -6,33 +6,45 @@ from tqdm import tqdm
 load_dotenv()
 
 
-class JmyCopy(BdWebAutoBase):
+class JmyContentCopy(BdWebAutoBase):
     def __init__(self, playwright):
         super().__init__(playwright)
         
-    def jmy_copy(self,jmy_page:Page):
+    def jmy_content_copy(self,jmy_page:Page):
         with jmy_page.expect_popup() as content_info:
             jmy_page.get_by_text("内容中心").click()
         content_page = content_info.value
         content_page.locator("li:nth-child(2) > .one-menu-item-span").click()
+        try:
+            content_page.wait_for_selector("text=复制账号金蛛教育的22篇文章，160个产品，11个问答，",timeout=10000)
+            print("已经人工复制")
+            return content_page
+        except Exception as e:
+            print(f'未发现人工复制')
         content_page.get_by_role("button", name="​ 物料共享").click()
-        content_page.get_by_role("button", name="​ 发起申请").click()
-        content_page.get_by_role("textbox", name="请输入账号名称").click()
-        content_page.get_by_role("textbox", name="请输入账号名称").fill("金蛛教育")
+        content_page.get_by_role("button", name="​ 复制物料").click()
+        content_page.get_by_role("button", name="​ 开始复制").click()
         content_page.get_by_role("button", name="​ 确定").click()
-        return content_page
+        try:
+            content_page.wait_for_selector("text=操作成功，物料开始复制",timeout=10000)
+            print("已经自动复制")
+        except Exception as e:
+            print(f'未发现自动复制')
+        finally:
+            return content_page
     
     def close_popup(self, page:Page):
         try:
             if 'pageAndShopAiCreatorChat' in page.url:
                 page.goto(self.page['jmy_page'].url)
+            page.wait_for_timeout(3000)
             page.get_by_role("button", name="​", exact=True).click()
-            page.once("dialog", lambda dialog: dialog.dismiss())
-            page.get_by_role("button", name="​", exact=True).click()
+            # page.once("dialog", lambda dialog: dialog.dismiss())
+            # page.get_by_role("button", name="​", exact=True).click()
             # super().close_popup(page)
             # page.wait_for_timeout(3000)
         except Exception as e:
-            print(f'基木鱼内容授权关闭弹窗容错，尝试返回')
+            print(f'基木鱼内容复制关闭弹窗容错，尝试返回')
         finally:
             return page
 
@@ -42,7 +54,7 @@ class JmyCopy(BdWebAutoBase):
         except Exception:
             print(err_msg)
     def run(self,user_name:str)->None:
-        func_str = '基木鱼物料复用授权'
+        func_str = '基木鱼内容复制'
         try:
             if self.page.get('user_center') is None:
                 self.page['user_center'] = self.login()
@@ -73,8 +85,8 @@ class JmyCopy(BdWebAutoBase):
         except Exception as e:
             return {user_name:f'{func_str}关闭弹窗失败:{e}'}
         try:
-            copy_page = self.jmy_copy(jmy_page)
-            print(f'{user_name}{func_str}获取易聊授权成功')
+            copy_page = self.jmy_content_copy(jmy_page)
+            print(f'{user_name}{func_str}复制基木鱼内容成功')
         except Exception as e:
             return {user_name:f'{func_str}授权失败:{e}'}
         try:
@@ -85,16 +97,17 @@ class JmyCopy(BdWebAutoBase):
             print('正常结束')
         except Exception as e:
             return {user_name:f'{func_str}授权成功，但在收尾时关闭页失败:{e}'}
-        return {user_name:'基木鱼物料复用授权申请成功'}
+        return {user_name:'基木鱼物料复制成功'}
 
 
 
 if __name__ == '__main__':
-    user_list = ["金蛛-PYTHON"]
+    user_list = ["金蛛-JAVA","金蛛-BCNT","金蛛-PYTHON"]
     result = []
     with sync_playwright() as playwright:
-        yiliao_auth = JmyCopy(playwright)
+        yiliao_auth = JmyContentCopy(playwright)
         for user_name in tqdm(user_list,desc="基木鱼物料复用授权"):
              result.append(yiliao_auth.run(user_name))
-        print(result)
+        for item in result:
+            print(item)
         yiliao_auth.close()

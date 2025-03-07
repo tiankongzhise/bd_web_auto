@@ -73,7 +73,7 @@ class BdWebAutoBase(object):
                 self.page['user_center'] = self.login()
             user_center = self.page['user_center']
         with user_center.expect_popup() as user_page_info:
-            user_center.get_by_text(user_name).click()
+            user_center.get_by_text(user_name).first.click()
         user_page = user_page_info.value
         self.page[f'{user_name}_page'] = user_page
         return user_page
