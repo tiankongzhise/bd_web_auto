@@ -19,12 +19,27 @@ class YxtDirectConsult(BdWebAutoBase):
     
         consult_page.get_by_text("通用咨询").click()
         try:
-            consult_page.wait_for_selector("一跳",timeout=5000)
+            consult_page.wait_for_selector("text=一跳",timeout=5000)
             print("已经人工创建")
             return consult_page
         except Exception as e:
-            print(f'未发现人工创建')
+            print('未发现人工创建')
+
         consult_page.get_by_role("button", name="​ 新建咨询方案").click()
+
+        # 定位“一跳咨询方案”元素
+        one_jump_solution = consult_page.locator('.consult-solution-item-container:has-text("一跳咨询方案")')
+
+        # 模拟鼠标悬浮
+        one_jump_solution.hover()
+        consult_page.wait_for_timeout(1000)
+        # # 等待浮层出现
+        # consult_page.wait_for_selector('.item-hover-content', state='visible')
+
+        # # 定位浮层中的按钮并点击
+        # hover_button = consult_page.locator('.item-hover-btn:has-text("创建")')
+        # hover_button.click()
+
         consult_page.get_by_role("button", name="​ 创建").click()
         consult_page.get_by_role("textbox", name="咨询方案名称").click()
         consult_page.get_by_role("textbox", name="咨询方案名称").fill("一跳")
@@ -42,12 +57,19 @@ class YxtDirectConsult(BdWebAutoBase):
             consult_page.get_by_role("button", name="​", exact=True).nth(1).click()
             consult_page.get_by_role("dialog").get_by_role("button", name="​ 确定").click()
         except Exception as e:
-            print(f'未发现人工创建')
+            print('未发现人工创建')
             consult_page.locator("span").filter(has_text="请上传长图（建议1140*500，最大1M），最多上传5").get_by_role("img").click()
-            consult_page.get_by_role("button", name="​ 本地上传").click()
-            consult_page.get_by_role("dialog").filter(has_text="上传图片 图片格式：JPG、JPEG、PNG、BMP、").get_by_label("关闭").set_input_files('https://jmy-pic.baidu.com/0/pic/915332669_-2084204044_-569106030.png')
+            # consult_page.get_by_role("button", name="​ 本地上传").click()
+            # consult_page.get_by_role("dialog").filter(has_text="上传图片 图片格式：JPG、JPEG、PNG、BMP、").get_by_label("打开").set_input_files('https://jmy-pic.baidu.com/0/pic/915332669_-2084204044_-569106030.png')
+            with consult_page.expect_file_chooser() as fc_info:
+                # paconsult_pagege.click("button#upload-button")  # 触发文件选择器弹窗
+                consult_page.get_by_role("button", name="​ 本地上传").click()
+            file_chooser = fc_info.value
+            file_chooser.set_files(r"E:\OneDrive\2025年项目\教育类\嘉华\素材\在用素材\北大青鸟24小时在线咨询16_9_1M.png")  # 设置文件路径
+            
             consult_page.wait_for_timeout(5000)
             consult_page.get_by_role("button", name="​ 确定").nth(2).click()
+            consult_page.wait_for_timeout(5000)
             consult_page.get_by_role("dialog").get_by_role("button", name="​ 确定").click()
             consult_page.get_by_role("textbox", name="卡片标题").click()
             consult_page.get_by_role("textbox", name="卡片标题").fill("北大青鸟深圳总校")
@@ -55,13 +77,18 @@ class YxtDirectConsult(BdWebAutoBase):
             consult_page.get_by_role("textbox", name="卡片内容").fill("专注IT职业教育26年,18门专业零基础可学,全程指导小班 制实操，入学签订就业协议，毕业推荐就业")
             consult_page.wait_for_timeout(2000)
             consult_page.get_by_role("button", name="​ 确定").click()
+        consult_page.wait_for_timeout(5000)
         consult_page.get_by_text("请选择或输入名称").click()
-        consult_page.get_by_role("listitem", name="高级图文卡片").click()
-        consult_page.get_by_text("北大青鸟深圳总校").click()
+        consult_page.get_by_text('高级图文卡片').click()
+        consult_page.get_by_text('高级图文卡片').click()
+        consult_page.get_by_text('高级图文卡片').click()
+        consult_page.get_by_text('高级图文卡片').click()
+        consult_page.get_by_text('高级图文卡片').click()
+        consult_page.get_by_text(re.compile(r'^北大青鸟')).click()
         consult_page.get_by_role("banner").filter(has_text="品牌优势卡展示商家服务特色，突出优势标签信息").get_by_role("switch").click()
         consult_page.get_by_text("请选择或输入名称").nth(1).click()
-        consult_page.get_by_text("北大青鸟", exact=True).click()
-        consult_page.locator("div:nth-child(2) > .item-card-wrap-item > .item-card-wrap-item-label > .item-card-wrap-item-radio > .one-radio-group > .one-radio-group-items > label:nth-child(3) > .one-radio > .one-radio-inner").click()
+        consult_page.get_by_text("北大青鸟", exact=True).first.click()
+        # consult_page.locator("div:nth-child(2) > .item-card-wrap-item > .item-card-wrap-item-label > .item-card-wrap-item-radio > .one-radio-group > .one-radio-group-items > label:nth-child(3) > .one-radio > .one-radio-inner").click()
         # consult_page.get_by_text("不选择").nth(1).click()
         # consult_page.get_by_text("不选择").nth(1).click()
         consult_page.get_by_text("不选择").nth(1).click()
@@ -83,37 +110,50 @@ class YxtDirectConsult(BdWebAutoBase):
         consult_page.get_by_role("option", name="咨询-预约看校").click()
         consult_page.get_by_role("textbox", name="请输入按钮文案，最多10个字符").click()
         consult_page.get_by_role("textbox", name="请输入按钮文案，最多10个字符").fill("预约看校")
-        consult_page.get_by_text("添加快捷咨询").click()
-        consult_page.get_by_text("添加快捷咨询").click()
+        # consult_page.get_by_text("添加快捷咨询").click()
+        # consult_page.get_by_text("添加快捷咨询").click()
+        
+        # consult_page.locator("div").filter(has_text=re.compile(r"^\*回复内容图文回复文字回复页面跳转表单回复卡券发放热门商品请选择或输入名称$")).get_by_label("表单回复").check()
+        # consult_page.locator("div").filter(has_text=re.compile(r"^\*回复内容图文回复文字回复页面跳转表单回复卡券发放热门商品\*表单方案新建表单选择已有表单\*表单模版请选择预约式表单标题8/50按钮文案8\/30$")).get_by_label("选择已有表单").check()
+        # consult_page.locator("div:nth-child(2) > div:nth-child(3) > .consult-detail-container-quickconsulting-content > .consult-detail-common-replay > .consult-detail-common-replay-child > .form-reply-wrapper > div:nth-child(2) > .one-select-medium").click()
         consult_page.locator("div").filter(has_text=re.compile(r"^添加快捷咨询$")).get_by_role("img").click()
-        consult_page.locator("div").filter(has_text=re.compile(r"^\*回复内容图文回复文字回复页面跳转表单回复卡券发放热门商品请选择或输入名称$")).get_by_label("表单回复").check()
-        consult_page.locator("div").filter(has_text=re.compile(r"^\*回复内容图文回复文字回复页面跳转表单回复卡券发放热门商品\*表单方案新建表单选择已有表单\*表单模版请选择预约式表单标题8/50按钮文案8\/30$")).get_by_label("选择已有表单").check()
-        consult_page.locator("div:nth-child(2) > div:nth-child(3) > .consult-detail-container-quickconsulting-content > .consult-detail-common-replay > .consult-detail-common-replay-child > .form-reply-wrapper > div:nth-child(2) > .one-select-medium").click()
-        consult_page.get_by_role("option", name="咨询-学费补贴").click()
+        consult_page.get_by_text("表单回复").nth(1).click()
+        consult_page.get_by_text("选择已有表单").nth(1).click()
+        consult_page.get_by_text("请选择或输入名称").nth(2).click()
+        consult_page.get_by_role("option", name="咨询-学费补贴").locator("span").click()
+        # consult_page.get_by_role("option", name="咨询-学费补贴").click()
+        # consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
+        # page14.get_by_text("表单回复").nth(1).click()
+        # page14.get_by_text("选择已有表单").nth(1).click()
+        # page14.get_by_text("请选择或输入名称").nth(2).click()
+        # page14.get_by_role("option", name="咨询-学费补贴").locator("span").click()
+        # page14.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
         consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
-        consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
-        consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").fill("学费补贴")
+        consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").fill("助学补贴")
+        
+        # consult_page.locator("div").filter(has_text=re.compile(r"^添加快捷咨询$")).get_by_role("img").click()
+        # consult_page.get_by_text("表单回复").nth(2).click()
+        # consult_page.get_by_text("选择已有表单").nth(2).click()
+        # consult_page.get_by_text("请选择或输入名称").nth(3).click()
+        # consult_page.get_by_role("option", name="咨询-预约看校").locator("span").click()
+        # consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
+        # consult_page.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").fill("预约看校")
+        
+        
         consult_page.get_by_role("banner").filter(has_text="电话设置客户可在咨询页设置电话方案、按钮文字等内容").get_by_role("switch").click()
         consult_page.get_by_role("textbox", name="请输入按钮文字，最多10个字符").click()
         consult_page.get_by_role("textbox", name="请输入按钮文字，最多10个字符").fill("咨询电话")
         consult_page.locator(".consult-detail-container-quickconsulting-item > .one-select-medium").click()
-        consult_page.get_by_role("option", name="智能-18466200090转").click()
+        consult_page.get_by_role("option", name=re.compile(r"^智能")).click()
+        # 使用正则表达式匹配包含 "智能" 的 option 元素
+        # consult_page.locator("option").filter(has_text=re.compile(r"^智能")).click()
         consult_page.locator("input[name=\"checkbox\"]").check()
         consult_page.get_by_role("button", name="​ 创建").click()
-        consult_page.get_by_text("创建成功").click()
-
-    page14.get_by_text("表单回复").nth(1).click()
-    page14.get_by_text("选择已有表单").nth(1).click()
-    page14.get_by_text("请选择或输入名称").nth(2).click()
-    page14.get_by_role("option", name="咨询-学费补贴").locator("span").click()
-    page14.locator("div").filter(has_text=re.compile(r"^\*按钮文案0/10$")).get_by_placeholder("请输入按钮文案，最多10个字符").click()
-
-
         try:
             consult_page.wait_for_selector("text=创建成功",timeout=5000)
-            print("已经自动复制")
+            print("自动操作成功")
         except Exception as e:
-            print(f'未发现自动复制')
+            print('未发现自动操作成功标志')
         finally:
             return consult_page
     
@@ -185,10 +225,10 @@ class YxtDirectConsult(BdWebAutoBase):
 
 
 if __name__ == '__main__':
-    user_list = ["金蛛-JAVA","金蛛-BCNT","金蛛-PYTHON"]
+    user_list = ["金蛛-BCSP"]
     result = []
     with sync_playwright() as playwright:
-        yiliao_auth = JmyContentCopy(playwright)
+        yiliao_auth = YxtDirectConsult(playwright)
         for user_name in tqdm(user_list,desc="基木鱼物料复用授权"):
              result.append(yiliao_auth.run(user_name))
         for item in result:
