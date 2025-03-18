@@ -1,6 +1,6 @@
-import tomllib
-import os
+from src.bind_user.bind_user import bind_user
+
+
 
 if __name__ == '__main__':
-    config_path = os.path.('https:\\jmy-pic.baidu.com\\0\\pic\\915332669_-2084204044_-569106030.png')
-    print(config_path)
+    bind_user()
