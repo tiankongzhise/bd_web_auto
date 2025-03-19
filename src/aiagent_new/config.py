@@ -50,6 +50,7 @@ class Config:
         "company_description": '专注IT培训教育26年，培养100W学员从事IT互联网行业。学AI，好工作，就找北大青鸟。 北大青鸟始终践行"职业教育就是就业教育"的教育本质， 坚持帮助学员成功就业，永远是硬道理，始终保持回归职业教育的本真，即坚守"教学为本，师爱为魂"的教育理念， 以及"内育职业素养，外塑专业技能"的青鸟校训，主要业务有软件开发培训，网络工程培训，AI开发培训，Java培训，大数据培训，Python培训，电商培训，新媒体培训，UI培训等。',
         "target_users": "目标用户是希望通过学一门技术获得好发展的人群。"
     }
+
     
     # 商家优势信息
     BUSINESS_ADVANTAGES = {
@@ -71,7 +72,13 @@ class Config:
         "全真项目实战",
         "AI+全新升级"
     ]
+
+    WELCOME_WORD = '北大青鸟针对不同年龄段人群开设不同的专业课程，小班授课，实战教学，学历+技能双修，毕业推荐就业，点击咨询学校详细'
     
+    BASE_EXT_INFO = {
+        'short_name':'深圳北大青鸟',
+        'address_path':r'C:\Users\tiank\OneDrive\2025年项目\教育类\嘉华\素材\在用素材\addressTemplate.xlsx'
+    }
     # 线索收集配置
     LEAD_COLLECTION = {
         "phone_plan": "转18806662618",

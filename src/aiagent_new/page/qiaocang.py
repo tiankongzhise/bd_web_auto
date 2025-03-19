@@ -19,7 +19,7 @@ class QiaoCang(BdWebAutoBase):
         qiaocang_url = Config.AGENT_CREATION["url"].format(user_id = Config.ACCOUNT_MAPPING[self.user_name])
         logger.debug(f"巧舱页面url为{qiaocang_url}")
         qiaocang_page.goto(qiaocang_url)
-        qiaocang_page.wait_for_load_state('networkidle',timeout=10000)
+        qiaocang_page.wait_for_load_state('load',timeout=10000)
         return qiaocang_page
     
     def set_agent_name(self, agent_page:Page,name: str) -> None:
@@ -141,14 +141,18 @@ class QiaoCang(BdWebAutoBase):
             raise
         
         try:
-            self.set_agent_name(qiaocang_page,Config.AGENT_CREATION["agent_name"])
-            self.set_avatar(qiaocang_page,Config.AGENT_CREATION['img_path'])
-            qiaocang_page.wait_for_timeout(2000)#等待页面返回
-            self.proceed_to_next_step(qiaocang_page)
-            self.set_company_description(qiaocang_page,Config.AGENT_CREATION["company_description"])
-            self.set_target_users(qiaocang_page,Config.AGENT_CREATION["target_users"])
-            self.proceed_to_next_step(qiaocang_page)
-            self.check_to_agreement(qiaocang_page)
+            qiaocang_page.wait_for_timeout(5000) # 等待页面跳转完成
+            if 'creatorChat' in qiaocang_page.url:
+                self.set_agent_name(qiaocang_page,Config.AGENT_CREATION["agent_name"])
+                self.set_avatar(qiaocang_page,Config.AGENT_CREATION['img_path'])
+                qiaocang_page.wait_for_timeout(2000)#等待页面返回
+                self.proceed_to_next_step(qiaocang_page)
+                self.set_company_description(qiaocang_page,Config.AGENT_CREATION["company_description"])
+                self.set_target_users(qiaocang_page,Config.AGENT_CREATION["target_users"])
+                self.proceed_to_next_step(qiaocang_page)
+                self.check_to_agreement(qiaocang_page)
+            else:
+                logger.info("智能体基础设置之前已创建完成")
         except Exception as e:
             logger.error(f"账号{user_name}智能体基础设置创建失败: {e}")
             raise
@@ -158,7 +162,9 @@ class QiaoCang(BdWebAutoBase):
         try:
             qiaocang_page = self.complete_basic_setup(user_name)
             ServiceAdvantages(qiaocang_page).run()
-            CoreBussinessTag(qiaocang_page).run()
+            ServiceAdvantagesTag(qiaocang_page).run()
+            WelcomeWord(qiaocang_page).run()
+            BaseExtInfo(qiaocang_page).run()
             qiaocang_page.wait_for_timeout(10000)
             
             logger.info("创建智能体成功")
@@ -169,57 +175,79 @@ class QiaoCang(BdWebAutoBase):
             
         
         
-class CoreBussinessTag(object):
+class ServiceAdvantagesTag(object):
     def __init__(self, page:Page) -> None:
         self.page = page
-        self.add_tag_button = page.locator("#roleSetting-baseInfoserviceTag").get_by_text("添加")
-        self.tag_box = page.locator("#roleSetting-baseInfoserviceTag").get_by_role("textbox")
+        self.add_tag_selector = "div.service-advantage-tags-add"
+        self.tag_box_selectoer = "#roleSetting-baseInfoserviceTag div.service-advantage-tags-add input"
+        # self.tags_selector = "#roleSetting-baseInfoserviceTag button.one-ai-button"
+        self.tags_selector = "#roleSetting-baseInfoserviceTag button[class*='one-ai-tag-close-icon']"
 
     def del_auto_tags(self) -> None:
         try:
             logger.info("删除自动添加的标签")
             # 定位所有待删除的 span 标签
-            spans = self.page.locator('span.one-ai-tag-text').all()
-            for span in spans:
-                # 点击删除按钮并等待元素消失
-                span.get_by_role("button").click()
+            # 或者使用更精确的类名组合（若类名稳定）
+            MAX_WHILE_LOOPS = 20
+            while_loops = 0
+            while True:
+                # current_buttons = self.page.query_selector_all(self.tags_selector)
+                current_buttons = self.page.locator(self.tags_selector).all()
+                current_buttons_count = self.page.locator(self.tags_selector).count()
+                logger.debug(f"当前标签数量: {current_buttons_count}")
+                if not current_buttons:
+                    break  # 无按钮时退出循环
+                current_buttons[0].click()  # 始终点击第一个按钮
                 self.page.wait_for_timeout(500)
-            # 验证删除结果
-            remaining_spans = self.page.locator('span.one-ai-tag-text').count()
-            logger.info(f"剩余未删除的 span 标签数量: {remaining_spans}")
+                while_loops += 1
+                if while_loops > MAX_WHILE_LOOPS:
+                    logger.error("循环次数过多，可能存在死循环。请检查代码。")
+                    break
+
+            logger.info(f"删除自动添加的{while_loops}个标签")
+            # spans = self.page.locator(self.button_selector).all()
+            # for span in spans:
+            #     # 点击删除按钮并等待元素消失
+            #     span.get_by_role("button").click()
+            #     self.page.wait_for_timeout(500)
+            # # 验证删除结果
+            # remaining_spans = self.page.locator(self.button_selector).count()
+            # logger.info(f"剩余未删除的 span 标签数量: {remaining_spans}")
             logger.info("删除自动添加的标签完成")
         except Exception as e:
             logger.error(f"删除自动添加的标签失败: {e}")
             raise
-    def add_core_bussiness_tag(self) -> None:
+    def add_tag(self) -> None:
         try:
-            logger.info("添加核心业务标签")
+            logger.info("添加服务优势标签")
             for tag in Config.SERVICE_TAGS:
-                self.add_tag_button.click()
-                self.tag_box.fill(tag)
-                self.tag_box.press("Enter")
+                self.page.locator(self.add_tag_selector).click()
+                self.page.wait_for_selector(self.tag_box_selectoer,timeout=5000)
+                self.page.locator(self.tag_box_selectoer).fill(tag)
+                self.page.locator(self.tag_box_selectoer).press("Enter")
                 self.page.wait_for_timeout(500)
-            logger.info("添加核心业务标签完成")
-            remaining_spans = self.page.locator('span.one-ai-tag-text').count()
+            logger.info("添加服务优势签完成")
+            remaining_spans = self.page.locator(self.tags_selector).count()
             logger.info(f"添加的 span 标签数量: {remaining_spans}")
             self.page.wait_for_timeout(1000) # 等待页面更新
         except Exception as e:
-            logger.error(f"添加核心业务标签失败: {e}")
+            logger.error(f"添加服务优势标签失败: {e}")
             raise
     
     def run(self) -> None:
         try:
             self.del_auto_tags()
-            self.add_core_bussiness_tag()
+            self.add_tag()
         except Exception as e:
-            logger.error(f"自动添加核心业务标签失败: {e}")
+            logger.error(f"自动添加服务优势标签失败: {e}")
             raise
             
 class ServiceAdvantages(object):
     def __init__(self, page:Page) -> None:
         self.page = page
         # 弹出填写框
-        self.pop_box_botton = page.get_by_alt_text("暂未填写")
+        # self.pop_box_botton = page.get_by_alt_text("暂未填写")
+        self.pop_box_botton = page.get_by_text("暂未填写")
         # 等级规模
         self.scale_and_grade_box = page.get_by_role("textbox", name="xx公司是xx地区最大的xx设备生产商，累积服务国内外xx")
         # 荣誉认证
@@ -236,10 +264,17 @@ class ServiceAdvantages(object):
         self.preferential_policies_box = page.get_by_role("textbox", name="采买超过x台设备的客户可享受大客户N折优惠。")
         # 确认按钮
         self.confirm_botton = page.get_by_role("button", name="​ 确认")
+
+        #确认是否存在
+        self.button_selector = "#roleSetting-baseInfoserviceTag button.one-ai-button"
     def fill_service_advantages(self) -> None:
         try:
             logger.info("填充服务优势")
             
+            if self.page.locator(self.button_selector).count() > 0:
+                logger.info("已存在服务优势，跳过填充")
+                return
+
             logger.info("点击弹出优势弹窗")
             self.pop_box_botton.click()
             
@@ -286,3 +321,135 @@ class ServiceAdvantages(object):
             logger.error(f"自动填充服务优势失败: {e}")
             raise
         
+class WelcomeWord(object):
+    def __init__(self, page:Page) -> None:
+        self.page = page
+        # 欢迎语
+        self.welcome_word_text_container_selecotr = '#roleSetting-baseInfowelcomeWord > div.rich-text-container.base-info-welcome-word > div.rich-text-content > div > div > div.fr-wrapper > div'
+    def fill_welcome_word(self) -> None:
+        logger.info("填充欢迎语")
+        try:
+            self.page.locator(self.welcome_word_text_container_selecotr).click()
+            self.page.locator(self.welcome_word_text_container_selecotr).fill(Config.WELCOME_WORD)
+            logger.info("填充欢迎语完成")
+        except Exception as e:
+            logger.error(f"填充欢迎语失败: {e}")
+            raise
+    
+    def run(self) -> None:
+        try:
+            self.fill_welcome_word()
+        except Exception as e:
+            logger.error(f"自动填充欢迎语失败: {e}")
+            raise
+
+class BaseExtInfo(object):
+    def __init__(self, page:Page) -> None:
+        self.page = page
+        # 添加角色扩展信息按钮信息
+        self.add_base_ext_info_selector = "#roleSetting-baseExtInfo div.common-title-display div.common-title-display-right"
+        self.fill_short_name_selector = "#roleSetting-baseExtInfoagentShortName   input"
+        self.select_theme_selector = '#baseExtInfo div.one-ai-checkbox-group.one-ai-theme-light-d22.light-ai.one-ai-checkbox-group-medium.one-ai-checkbox-group-row:has-text("线下业务")'
+        self.select_theme_ischeck_selector = '.one-ai-checkbox-button-input'
+        self.upload_address_template_button_selector = "#baseExtInfo div.base-ext-address div.common-title-display button"
+        self.upload_address_file_select_selector = 'button.one-ai-button:has(span:text("点击选择文件"))'
+        self.upload_address_file_del_old_file_selector = 'body > div:nth-child(5) > div > div.one-ai-dialog > div.one-ai-dialog-content.agent-common-modal-content > div.one-ai-dialog-body > div > div > div.uploadwithpkg-cotainer > div > svg'
+        self.upload_address_file_upload_selector = 'button.one-ai-button-primary:has-text("开始上传")'
+        self.upload_address_file_confirm_selector = 'button.one-ai-button-primary:has-text("确认")'
+        self.upload_address_success_selector = 'div.address-upload-two-success:has-text("上传成功")'
+        self.upload_address_back_selector = "#roleSetting > div.new-role-second-edit-page-back-container > div > div > div > div > div"
+        self.upload_address_back_success_selector = "#roleSetting-baseExtInfo > div > div.common-tags-display > div.one-ai-tag.common-tags-display-tags.light-ai.light-ai.one-ai-tag-medium.one-ai-tag-no-bordered.one-ai-tag-fill-solid"
+
+        
+        
+    def goto_base_ext_info(self) -> None:
+        logger.info("点击添加角色扩展信息按钮")
+        try:
+            self.page.locator(self.add_base_ext_info_selector).click()
+            logger.info("点击添加角色扩展信息按钮完成")
+        except Exception as e:
+            logger.error(f"点击添加角色扩展信息按钮失败: {e}")
+            raise
+    #roleSetting-baseExtInfoagentShortName > div > div > div > input
+    def fill_short_name(self):
+        logger.info("填写角色扩展信息-商家简称")
+        try:
+            self.page.locator(self.fill_short_name_selector).fill(Config.BASE_EXT_INFO["short_name"])
+            logger.info("填写角色扩展信息-商家简称完成")
+        except Exception as e:
+            logger.error(f"填写角色扩展信息-商家简称失败: {e}")
+            raise
+
+    #baseExtInfo > div > div.one-ai-checkbox-group.one-ai-theme-light-d22.light-ai.one-ai-checkbox-group-medium.one-ai-checkbox-group-row > div > label:nth-child(2) > span.one-ai-checkbox-button-item
+    #//*[@id="baseExtInfo"]/div/div[6]/div/label[2]/span[2]
+    #//span[contains(@class, 'one-ai-checkbox-button-item') and text()='线下业务']
+    def select_theme(self):
+        logger.info("选择角色扩展信息-经营类型")
+        if self.page.locator(self.select_theme_selector).count() == 0: #如果元素不存在，则跳过
+            logger.info("线下业务元素不存在，跳过")
+            raise "线下业务元素不存在"
+        try:
+            theme_box = self.page.locator(self.select_theme_ischeck_selector)
+            if theme_box.is_checked():
+                logger.info("线下业务已选中，跳过")
+            else:
+                self.page.locator(self.select_theme_selector).click()
+            logger.info("选择角色扩展信息-经营类型完成")
+        except Exception as e:
+            logger.error(f"选择角色扩展信息-经营类型失败: {e}")
+            raise
+
+    def upload_address_template(self):
+        logger.info("上传地址模板")
+        try:
+            self.page.locator(self.upload_address_template_button_selector).click()
+            if self.page.locator(self.upload_address_file_del_old_file_selector).count() > 0: #如果存在删除按钮，则先删除
+                self.page.locator(self.upload_address_file_del_old_file_selector).click()
+            if not upload_file(self.page,self.upload_address_file_select_selector,Config.BASE_EXT_INFO["address_path"]):
+                raise f'文件上传失败'
+            self.page.wait_for_selector(self.upload_address_file_upload_selector,timeout=10000) #等待确认上传按钮出现
+            logger.debug("出现确认上传按钮，且可以点击")
+            self.page.locator(self.upload_address_file_upload_selector).click()
+            logger.debug("点击确认上传按钮")
+            self.page.wait_for_selector(self.upload_address_success_selector,timeout=10000)
+            logger.debug('上传成功标识出现')
+            self.page.locator(self.upload_address_file_confirm_selector).click()
+            logger.debug("点击确认按钮成功")
+            logger.info("上传地址模板完成")
+        except Exception as e:
+            logger.error(f"上传地址模板失败: {e}")
+            raise
+    def back_to_agent_setting(self):
+        logger.info("返回到角色设置页面")
+        try:
+            self.page.locator(self.upload_address_back_selector).click()
+            self.page.wait_for_selector(self.upload_address_back_success_selector,timeout=10000)
+            logger.info("返回到角色设置页面完成")
+        except Exception as e:
+            logger.error(f"返回到角色设置页面失败: {e}")
+            raise
+    def run(self):
+        try:
+            logger.info("开始执行角色扩展信息上传")
+            self.goto_base_ext_info()
+            self.fill_short_name()
+            self.select_theme()
+            self.upload_address_template()
+            self.back_to_agent_setting()
+        except Exception as e:
+            logger.error(f"执行角色扩展信息上传失败: {e}")
+            raise
+
+def upload_file(page:Page,upload_selector:str,file_path:str):
+    try:
+        logger.info("开始上传文件")
+        with page.expect_file_chooser() as fc_info:
+            # paconsult_pagege.click("button#upload-button")  # 触发文件选择器弹窗
+            page.locator(upload_selector).click()
+        file_chooser = fc_info.value
+        file_chooser.set_files(file_path)  # 设置文件路径
+        logger.info("上传文件完成")
+        return True
+    except Exception as e:
+        logger.error(f"上传文件失败: {e}")
+        return False
