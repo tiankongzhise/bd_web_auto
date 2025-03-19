@@ -1,6 +1,6 @@
-from src.bind_user.bind_user import bind_user
+from src.aiagent_new import create_aiagent
 
 
 
 if __name__ == '__main__':
-    bind_user()
+    create_aiagent("金蛛-新账户3")

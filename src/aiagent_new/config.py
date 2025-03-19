@@ -46,6 +46,7 @@ class Config:
     AGENT_CREATION = {
         "url": "https://aiagent.baidu.com/mbot/user/{user_id}/creatorChat?relationSource=mbotIndex&ucUserId={user_id}",
         "agent_name": "深圳北大青鸟教师助理",
+        "img_path":r'E:\OneDrive\2025年项目\教育类\嘉华\素材\在用素材\北大青鸟鸟标.png',
         "company_description": '专注IT培训教育26年，培养100W学员从事IT互联网行业。学AI，好工作，就找北大青鸟。 北大青鸟始终践行"职业教育就是就业教育"的教育本质， 坚持帮助学员成功就业，永远是硬道理，始终保持回归职业教育的本真，即坚守"教学为本，师爱为魂"的教育理念， 以及"内育职业素养，外塑专业技能"的青鸟校训，主要业务有软件开发培训，网络工程培训，AI开发培训，Java培训，大数据培训，Python培训，电商培训，新媒体培训，UI培训等。',
         "target_users": "目标用户是希望通过学一门技术获得好发展的人群。"
     }

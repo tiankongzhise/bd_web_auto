@@ -1,4 +1,4 @@
-from playwright.sync_api import Playwright, sync_playwright, Page
+from playwright.sync_api import Playwright, Page
 import tomllib
 import os
 import re
@@ -13,6 +13,7 @@ class BdWebAutoBase(object):
     def __init__(self, playwright: Playwright) -> None:
         self.playwright = playwright
         self.page = {}
+        self.user_name = None
         with open("config.toml", "rb") as f:
             self.config = tomllib.load(f)
     
@@ -76,6 +77,7 @@ class BdWebAutoBase(object):
             user_center.get_by_text(user_name).first.click()
         user_page = user_page_info.value
         self.page[f'{user_name}_page'] = user_page
+        self.user_name = user_name
         return user_page
     
     def navigate_to_marketing(self, page: Page) -> Page:
