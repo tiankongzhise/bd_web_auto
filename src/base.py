@@ -1,4 +1,6 @@
-from playwright.sync_api import Playwright, Page
+from playwright.sync_api import Playwright, Page,sync_playwright
+from tkzs_bd_db_tool import get_session,models
+from logger_config import logger
 import tomllib
 import os
 import re
@@ -148,3 +150,135 @@ class BdWebAutoBase(object):
         self.browser.close()
         self.page = {}
         
+class BrowserManager:
+    def __init__(self)->None:
+        self.playwright = sync_playwright().start()
+        
+    def launch_browser(self)->Playwright:
+        return self.playwright.chromium.launch(headless=False)
+
+    def close(self)->None:
+        self.playwright.stop()
+
+class PageSession:
+    def __init__(self, context)->None:
+        self.context = context
+        self.pages = {}
+        
+    def new_page(self, name:str)->Page:
+        self.pages[name] = self.context.new_page()
+        return self.pages[name]
+    
+    def new_page_wait(self, name:str,page:Page):
+        try:
+            page.wait_for_timeout(5000)
+        except Exception as e:
+            logger.error(f'等待页面加载失败:{e}')
+            raise(f'等待页面加载失败:{e}')
+        self.pages[name] = self.context.new_page()
+        return self.pages[name]
+    
+class AuthManager:
+    def __init__(self, page:Page):
+        self.page = page
+        
+    def baidu_login(self, username:str|None = None, password:str|None = None)->Page:
+        '''
+        百度ADS登录，如果未传入用户名密码，则从环境变量中获取
+        '''
+        self.page.goto("https://cas.baidu.com/?tpl=www2&fromu=https%3A%2F%2Fwww2.baidu.com%2Fcommon%2Fappinit.ajax")
+        self.page.get_by_role("textbox", name="请输入账号").fill(username or os.getenv("BDCC_USERNAME"))
+        self.page.get_by_role("textbox", name="请输入密码").fill(password or os.getenv("BDCC_PASSWORD"))
+        self.page.get_by_role("button", name="登录").click()
+        return self.page
+
+class AdsAccountManager:
+    def __init__(self, page:Page):
+        self.page = page
+    
+    def get_account_mapping(self)->dict:
+        try:
+            with get_session() as session:
+                rsp = session.query(models.BdAdCenterBindTable).all()
+                account_map = models.BdAdCenterBindTable.to_account_mapping(rsp)
+            return account_map
+        except Exception as e:
+            logger.error(f'获取账户映射失败{e}')
+    
+    def goto_account_page(self,user_name:str)->Page:
+        account_maping = self.get_account_mapping()
+        user_id = account_maping[user_name]
+        try:
+            self.page.goto(f'https://tuiguang.baidu.com/oneWeb.html?userid={user_id}')
+            self.page.wait_for_load_state(state='load',timeout=10000)
+            logger.info(f'导航到账户{user_name}页面成功')
+            return self.page
+        except Exception as e:
+            logger.error(f'导航到账户页面失败{e}')
+    
+    def select_max_account(self)->Page:
+        logger.debug('开始选择100条/页面')
+        # 定位下拉框并点击
+        dropdown = self.page.locator('div.one-pagination .one-select-medium.one-main.one-select.one-select-enabled')
+        dropdown.click()
+        logger.debug('下拉框点击成功')
+        # 定位并选择 "100条/页" 选项
+        option = self.page.locator('li.one-select-dropdown-menu-item >> span', has_text='100条/页')
+        option.click()
+        logger.debug('选择100条/页成功')
+        self.page.wait_for_load_state("networkidle",timeout=10000)
+        logger.debug('切换到100条/页面成功')
+    
+    def click_into_user_page(self,user_name:str):
+        logger.debug(f"点击进入用户页面：{user_name}")
+        with self.page.expect_popup() as user_page_info:
+            self.page.locator('span', has_text=re.compile(r'^{user_name}$'.format(user_name=user_name))).click()
+            logger.debug(f"点击进入用户页面：{user_name}成功")
+        user_page = user_page_info.value
+        user_page.wait_for_load_state("load",timeout=10000)
+        logger.debug(f"切换到用户页面：{user_name}成功")
+        return user_page
+        
+    def run(self,user_name:str):
+        try:
+            logger.info(f"开始切换到用户页面：{user_name}")
+            self.select_max_account()
+            user_page = self.click_into_user_page(user_name)
+            logger.info(f"切换到用户页面：{user_name}成功")
+        except Exception as e:
+            logger.error(f"切换到用户页面：{user_name}失败，原因：{e}")
+            raise e
+        return user_page
+        
+        
+        
+        
+class AutoAdsSession:
+    def __init__(self,browser_manager: BrowserManager|None = None):
+        self.browser_manager = browser_manager or BrowserManager()
+        self.user_name = None
+        self.browser = None
+        self.context = None
+        self.page_session:PageSession|None = None
+
+    def __enter__(self):
+        self.browser = self.browser_manager.launch_browser()
+        self.context = self.browser.new_context()
+        self.page_session = PageSession(self.context)
+
+        # 执行逻辑
+        main_page = self.page_session.new_page("main")
+        AuthManager(main_page).baidu_login()
+        return self
+
+    def get_account_page(self,user_name:str,*kwargs)->PageSession:
+        center_page = self.page_session.pages['main']
+        self.user_name = user_name
+        user_page = AdsAccountManager(center_page).run(self.user_name)
+
+        return user_page
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # 确保资源释放
+        self.context.close()
+        self.browser_manager.close()

@@ -1,26 +1,24 @@
-from src.base import BdWebAutoBase
+from src.base import AutoAdsSession
 from src.logger_config import logger
-from playwright.sync_api import Playwright, Page
+from playwright.sync_api import  Page
 from ..config import Config
 import re
 
-class QiaoCang(BdWebAutoBase):
-    def __init__(self, playwright: Playwright) -> None:
-        super().__init__(playwright)
+
+class QiaoCang(object):
+    def __init__(self) -> None:
+        self.user_name = None
 
     def navigate_to_qiaocang(self,user_page: Page)->Page:
-        if self.user_name is None:
-            logger.error("navigate_to_qiaocang中self.user_name为空，请检查！")
-            raise ValueError("登录异常，请联系管理员排查！")
-        qiaocang_button = user_page.locator("div").filter(has_text=re.compile(r"^巧舱$")).nth(4)
-        with user_page.expect_popup() as qiaocang_info:
-            qiaocang_button.click()
-        qiaocang_page = qiaocang_info.value
         qiaocang_url = Config.AGENT_CREATION["url"].format(user_id = Config.ACCOUNT_MAPPING[self.user_name])
         logger.debug(f"巧舱页面url为{qiaocang_url}")
-        qiaocang_page.goto(qiaocang_url)
-        qiaocang_page.wait_for_load_state('load',timeout=10000)
-        return qiaocang_page
+        try:
+            user_page.wait_for_load_state("load",timeout=10000)
+        except Exception as e:
+            logger.error("导航到巧舱页面超时,尝试直接跳转巧仓页面")
+        user_page.goto(qiaocang_url)
+        user_page.wait_for_load_state("load",timeout=10000)
+        return user_page
     
     def set_agent_name(self, agent_page:Page,name: str) -> None:
         """设置智能体名称
@@ -118,26 +116,12 @@ class QiaoCang(BdWebAutoBase):
             logger.error(f"创建智能体失败: {e}")
             raise
     
-    def complete_basic_setup(self, user_name: str) -> Page:
-        try:
-            center_page = self.login()
-            logger.info("账户中心登录成功")
-        except Exception as e:
-            logger.error(f"账户中心登录失败: {e}",stack_info=True)
-            raise
-        
-        try:
-            user_page = self.user_page(user_name,center_page)
-            logger.info(f"账号{user_name}登录成功")
-        except  Exception as e:
-            logger.error(f"账号{user_name}登录失败: {e}",stack_info=True)
-            raise
-        
+    def complete_basic_setup(self, user_page:Page) -> Page:        
         try:
             qiaocang_page = self.navigate_to_qiaocang(user_page)
-            logger.info(f"账号{user_name}导航到智能体创建页面成功")
+            logger.info(f"账号{self.user_name}导航到智能体创建页面成功")
         except Exception as e:
-            logger.error(f"账号{user_name}导航到智能体创建页面失败: {e}")
+            logger.error(f"账号{self.user_name}导航到智能体创建页面失败: {e}")
             raise
         
         try:
@@ -154,24 +138,29 @@ class QiaoCang(BdWebAutoBase):
             else:
                 logger.info("智能体基础设置之前已创建完成")
         except Exception as e:
-            logger.error(f"账号{user_name}智能体基础设置创建失败: {e}")
+            logger.error(f"账号{self.user_name}智能体基础设置创建失败: {e}")
             raise
         return qiaocang_page
     
-    def run(self,user_name: str) -> Page:
+    def run(self,user_info: str|list) -> Page:
         try:
-            qiaocang_page = self.complete_basic_setup(user_name)
-            ServiceAdvantages(qiaocang_page).run()
-            ServiceAdvantagesTag(qiaocang_page).run()
-            WelcomeWord(qiaocang_page).run()
-            BaseExtInfo(qiaocang_page).run()
-            qiaocang_page.wait_for_timeout(10000)
-            
-            logger.info("创建智能体成功")
+            if isinstance(user_info,str):
+                user_info = [user_info]
+            with AutoAdsSession() as ads_session:
+                for user_name in user_info:
+                    user_page = ads_session.get_account_page(user_name)
+                    self.user_name = user_name
+                    qiaocang_page = self.complete_basic_setup(user_page)
+                    ServiceAdvantages(qiaocang_page).run()
+                    ServiceAdvantagesTag(qiaocang_page).run()
+                    WelcomeWord(qiaocang_page).run()
+                    BaseExtInfo(qiaocang_page).run()
+                    qiaocang_page.wait_for_timeout(10000)
+                    logger.info(f"账户{user_name}创建智能体成功")
         except Exception as e:
             logger.error(f"创建智能体失败: {e}")
             raise
-        return qiaocang_page
+
             
         
         
@@ -347,10 +336,11 @@ class BaseExtInfo(object):
     def __init__(self, page:Page) -> None:
         self.page = page
         # 添加角色扩展信息按钮信息
+        self.filled_celector = "#roleSetting-baseExtInfo:has-text('门店地址')"
         self.add_base_ext_info_selector = "#roleSetting-baseExtInfo div.common-title-display div.common-title-display-right"
         self.fill_short_name_selector = "#roleSetting-baseExtInfoagentShortName   input"
         self.select_theme_selector = '#baseExtInfo div.one-ai-checkbox-group.one-ai-theme-light-d22.light-ai.one-ai-checkbox-group-medium.one-ai-checkbox-group-row:has-text("线下业务")'
-        self.select_theme_ischeck_selector = '.one-ai-checkbox-button-input'
+        # self.select_theme_ischeck_selector = '.one-ai-checkbox-button-input'
         self.upload_address_template_button_selector = "#baseExtInfo div.base-ext-address div.common-title-display button"
         self.upload_address_file_select_selector = 'button.one-ai-button:has(span:text("点击选择文件"))'
         self.upload_address_file_del_old_file_selector = 'body > div:nth-child(5) > div > div.one-ai-dialog > div.one-ai-dialog-content.agent-common-modal-content > div.one-ai-dialog-body > div > div > div.uploadwithpkg-cotainer > div > svg'
@@ -389,7 +379,7 @@ class BaseExtInfo(object):
             logger.info("线下业务元素不存在，跳过")
             raise "线下业务元素不存在"
         try:
-            theme_box = self.page.locator(self.select_theme_ischeck_selector)
+            theme_box = self.page.get_by_role('checkbox',name= '线下业务')
             if theme_box.is_checked():
                 logger.info("线下业务已选中，跳过")
             else:
@@ -406,7 +396,7 @@ class BaseExtInfo(object):
             if self.page.locator(self.upload_address_file_del_old_file_selector).count() > 0: #如果存在删除按钮，则先删除
                 self.page.locator(self.upload_address_file_del_old_file_selector).click()
             if not upload_file(self.page,self.upload_address_file_select_selector,Config.BASE_EXT_INFO["address_path"]):
-                raise f'文件上传失败'
+                raise '文件上传失败'
             self.page.wait_for_selector(self.upload_address_file_upload_selector,timeout=10000) #等待确认上传按钮出现
             logger.debug("出现确认上传按钮，且可以点击")
             self.page.locator(self.upload_address_file_upload_selector).click()
@@ -428,9 +418,18 @@ class BaseExtInfo(object):
         except Exception as e:
             logger.error(f"返回到角色设置页面失败: {e}")
             raise
+    def filled_check(self):
+        if self.page.locator(self.filled_celector).count()>0:
+            logger.info("角色扩展信息,之前已经被填写过")
+            return True
+        else:
+            return False
     def run(self):
         try:
             logger.info("开始执行角色扩展信息上传")
+            if self.filled_check():
+                logger.info("跳过角色扩展信息填充")
+                return None
             self.goto_base_ext_info()
             self.fill_short_name()
             self.select_theme()
@@ -453,3 +452,77 @@ def upload_file(page:Page,upload_selector:str,file_path:str):
     except Exception as e:
         logger.error(f"上传文件失败: {e}")
         return False
+
+class LeadsCollection(object):
+    def __init__(self,page:Page):
+        self.page = page
+        self.leads_collection_selector = "div.one-ai-collapse-item-title:has-text('线索收集')"
+        self.phone_box_selector = 'div.clue-type-obtain:has-text("电话方案")'
+        self.phone_auto_send_selector = "div.one-ai-checkbox-item:has-text('主动发送')"
+        self.phone_select_selection_selector = 'div.one-ai-select-selection__rendered:has-text("请选择电话方案")'
+        self.phone_select_menu_selector = 'li.one-ai-select-dropdown-menu-item:has-text("转")'
+        self.phone_push_selector = 'span.one-ai-checkbox-item:has-text("优先发送客服电话")'
+        self.wechat_box_selector = 'div.clue-type-obtain:has-text("微信方案")'
+        self.wechat_anser_selector = 'span.one-ai-checkbox-item:has-text("被动回答")'
+    def explan_leads_collection_setting(self)->None:
+        try:
+            logger.info("设置线索收集")
+            self.page.locator(self.leads_collection_selector).click()
+            logger.info("展开线索收集设置")
+        except Exception as e:
+            logger.error(f"设置线索收集失败: {e}")
+            return
+        
+        
+    
+    def check_phone_auto_send_checkbox(self)->None:
+        try:
+            logger.info("勾选电话线索获取方式，电话主动发送")
+            self.page.locator(self.phone_box_selector).locator(self.phone_auto_send_selector).click()
+            logger.info("设置电话主动发送成功")
+        except Exception as e:
+            logger.error(f"设置手机号自动发送失败: {e}")
+            raise
+    def select_phone_selection(self)->None:
+        try:
+            logger.info("开始设置电话方案")
+            self.page.locator(self.phone_select_selection_selector).click()
+            logger.info("选择虚拟号转接方案")
+            self.page.locator(self.phone_select_menu_selector).click()
+            logger.info("电话方案设置完成")
+        except Exception as e:
+            logger.error(f'设置电话方案失败:{e}')
+            raise
+        
+    def check_push_phone(self):
+        try:
+            logger.info("勾选发送客服电话")
+            self.page.locator(self.phone_push_selector).click()
+            logger.info('设置发送客户电话完成')
+        except Exception as e:
+            logger.error(f'设置发送客服电话失败，{e}')
+    
+    def check_wechat_anser(self):
+        try:
+            logger.info("勾选微信线索获取方式，被动应答")
+            self.page.locator(self.wechat_box_selector).locator(self.wechat_anser_selector).click()
+            logger.info("设置微信被动应答成功")
+        except Exception as e:
+            logger.error(f"设置微信被动应答失败: {e}")
+            raise
+        
+    
+    def run(self):
+        try:
+            logger.info('设置线索收集方式')
+            self.explan_leads_collection_setting()
+            self.check_phone_auto_send_checkbox()
+            self.select_phone_selection()
+            self.check_push_phone()
+            self.check_wechat_anser()
+        except Exception as e:
+            logger.error(f'自动设置线索手机方式失败:{e}')
+        
+        
+        
+        

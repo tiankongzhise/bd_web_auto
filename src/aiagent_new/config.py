@@ -1,13 +1,31 @@
 from tkzs_bd_db_tool import init_db,get_session
 from tkzs_bd_db_tool import models
 from src.logger_config import logger
+from typing import Literal
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-
-
 init_db()
+
+def get_diff_file_path(project_name:Literal['address_upload','img_upload'],
+                       file_info:str|None = None):
+    import socket
+    # 获取计算机名
+    hostname = socket.gethostname()
+    path_mapping = {
+        'LAPTOP-P760HVAU':{
+            'address_upload':r'E:\OneDrive\2025年项目\教育类\嘉华\素材\在用素材',
+            'img_upload':r'E:\OneDrive\2025年项目\教育类\嘉华\素材\在用素材'
+            }
+    }
+     # 获取基础路径，无匹配时使用用户主目录
+    base_path = path_mapping.get(hostname, os.path.expanduser("~")).get(project_name,os.getcwd())
+    
+    if file_info is None:
+        return base_path
+    # 拼接完整路径
+    return os.path.join(base_path, file_info)
 
 def get_account_list():
     with get_session() as session:
@@ -46,7 +64,7 @@ class Config:
     AGENT_CREATION = {
         "url": "https://aiagent.baidu.com/mbot/user/{user_id}/creatorChat?relationSource=mbotIndex&ucUserId={user_id}",
         "agent_name": "深圳北大青鸟教师助理",
-        "img_path":r'E:\OneDrive\2025年项目\教育类\嘉华\素材\在用素材\北大青鸟鸟标.png',
+        "img_path":get_diff_file_path('img_upload','北大青鸟鸟标.png'),
         "company_description": '专注IT培训教育26年，培养100W学员从事IT互联网行业。学AI，好工作，就找北大青鸟。 北大青鸟始终践行"职业教育就是就业教育"的教育本质， 坚持帮助学员成功就业，永远是硬道理，始终保持回归职业教育的本真，即坚守"教学为本，师爱为魂"的教育理念， 以及"内育职业素养，外塑专业技能"的青鸟校训，主要业务有软件开发培训，网络工程培训，AI开发培训，Java培训，大数据培训，Python培训，电商培训，新媒体培训，UI培训等。',
         "target_users": "目标用户是希望通过学一门技术获得好发展的人群。"
     }
@@ -77,7 +95,7 @@ class Config:
     
     BASE_EXT_INFO = {
         'short_name':'深圳北大青鸟',
-        'address_path':r'C:\Users\tiank\OneDrive\2025年项目\教育类\嘉华\素材\在用素材\addressTemplate.xlsx'
+        'address_path':get_diff_file_path('address_upload','addressTemplate.xlsx')
     }
     # 线索收集配置
     LEAD_COLLECTION = {
@@ -85,7 +103,3 @@ class Config:
         "wechat_plan": "挂机短信默认方案_2618"
     }
     
-    # 文件路径
-    FILES = {
-        "address_template": "addressTemplate.xlsx"
-    }
