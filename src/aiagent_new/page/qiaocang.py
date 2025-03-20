@@ -155,6 +155,7 @@ class QiaoCang(object):
                     ServiceAdvantagesTag(qiaocang_page).run()
                     WelcomeWord(qiaocang_page).run()
                     BaseExtInfo(qiaocang_page).run()
+                    LeadsCollection(qiaocang_page).run()
                     qiaocang_page.wait_for_timeout(10000)
                     logger.info(f"账户{user_name}创建智能体成功")
         except Exception as e:
@@ -464,6 +465,14 @@ class LeadsCollection(object):
         self.phone_push_selector = 'span.one-ai-checkbox-item:has-text("优先发送客服电话")'
         self.wechat_box_selector = 'div.clue-type-obtain:has-text("微信方案")'
         self.wechat_anser_selector = 'span.one-ai-checkbox-item:has-text("被动回答")'
+        self.wechat_select_selection_selector = 'div.one-ai-select-selection__rendered:has-text("请选择微信方案")'
+        self.wechat_select_mmenu_selector = 'li.one-ai-select-dropdown-menu-item:has-text("挂机短信默认方案")'
+        self.leads_confirm_setting_buttom_selector = '#clueCollect-clueVerify > div > div.common-title-display > div.common-title-display-right > svg'
+        self.confirm_phone_span_selector = 'span.one-ai-checkbox-button-item:has-text("号码异常验证")'
+        self.confirm_phone_back_selector = "#clueCollect > div.new-role-second-edit-page-back-container > div > div > div > div > div"
+        self.confirm_phone_back_success_selector = "#roleSetting-baseExtInfo > div > div.common-tags-display > div.one-ai-tag.common-tags-display-tags.light-ai.light-ai.one-ai-tag-medium.one-ai-tag-no-bordered.one-ai-tag-fill-solid"
+
+        
     def explan_leads_collection_setting(self)->None:
         try:
             logger.info("设置线索收集")
@@ -510,7 +519,44 @@ class LeadsCollection(object):
         except Exception as e:
             logger.error(f"设置微信被动应答失败: {e}")
             raise
-        
+    
+    def select_wechat_selection(self):
+        try:
+            logger.info("开始设置微信方案")
+            self.page.locator(self.wechat_select_selection_selector).click()
+            logger.info("选择挂机短信默认方案")
+            self.page.locator(self.wechat_select_mmenu_selector).click()
+            logger.info("微信方案设置完成")
+        except Exception as e:
+            logger.error(f'设置微信方案失败:{e}')
+            raise
+    
+    def leads_confirm_setting(self):
+        try:
+            logger.info("打开线索验证设置")
+            self.page.locator(self.leads_confirm_setting_buttom_selector).click()
+            logger.info("打开线索验证设置成功")
+        except Exception as e:
+            logger.error(f"确认线索收集设置失败: {e}")
+            raise
+    def check_confirm_phone(self):
+        try:
+            logger.info("勾选号码异常验证")
+            self.page.locator(self.confirm_phone_span_selector).click()
+            logger.info("设置号码异常验证成功")
+        except Exception as e:
+            logger.error(f"设置号码异常验证失败: {e}")
+            raise
+    def back_to_leads_collection(self):
+        logger.info("返回到角色设置页面")
+        try:
+            self.page.locator(self.confirm_phone_back_selector).click()
+            self.page.wait_for_selector(self.confirm_phone_back_success_selector,timeout=10000)
+            logger.info("返回到角色设置页面完成")
+        except Exception as e:
+            logger.error(f"返回到角色设置页面失败: {e}")
+            raise
+
     
     def run(self):
         try:
@@ -520,6 +566,11 @@ class LeadsCollection(object):
             self.select_phone_selection()
             self.check_push_phone()
             self.check_wechat_anser()
+            self.select_wechat_selection()
+            self.leads_confirm_setting()
+            self.check_confirm_phone()
+            self.back_to_leads_collection()
+            logger.info('设置线索收集方式完成')
         except Exception as e:
             logger.error(f'自动设置线索手机方式失败:{e}')
         
